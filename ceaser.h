@@ -1,6 +1,8 @@
 #ifndef CEASER_H
 #define CEASER_H
 
+#include <string.h>
+
 // Encrypt a character by a certain shift
 static inline char JCCL_ceaserEncryptChar(char c, int shift){
     char encryptedC;
@@ -29,21 +31,21 @@ static inline char JCCL_ceaserDecryptChar(char c, int shift){
 }
 
 // Encrypt an entire string by a certain shift, storing result in outStr
-static inline char* JCCL_ceaserEncryptStr(char* str, int strLen, int shift, char* outStr){
-    for(int i=0; i<strLen; i++){
+static inline char* JCCL_ceaserEncryptStr(char* str, int shift, char* outStr){
+    for(int i=0; i<strlen(str); i++){
         outStr[i] = JCCL_ceaserEncryptChar(str[i], shift);
     }
 
-    outStr[strLen] = '\0';
+    outStr[strlen(str)] = '\0';
 }
 
 // Decrypt an entire string that was encrypted by a certain shift, storing result in outStr
-static inline void JCCL_ceaserDecryptStr(char* str, int strLen, int shift, char* outStr){
-    for(int i=0; i<strLen; i++){
+static inline void JCCL_ceaserDecryptStr(char* str, int shift, char* outStr){
+    for(int i=0; i<strlen(str); i++){
         outStr[i] = JCCL_ceaserDecryptChar(str[i], shift);
     }
 
-    outStr[strLen] = '\0';
+    outStr[strlen(str)] = '\0';
 }
 
 #endif
