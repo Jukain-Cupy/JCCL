@@ -5,25 +5,28 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define CHUNK_SIZE 18
+// Number of digits per node
+#define CHUNK_SIZE 9
 
+// Doubly linked list node storing a chunk of digits
 typedef struct Node{
     unsigned long long digits;
     struct Node* next;
     struct Node* prev;
 } Node;
 
+// BigInt representation
 typedef struct BigInt{
-    Node* head;
-    Node* tail;
-    int size;
-    int sign;
+    Node* head; // Least significant chunk
+    Node* tail; // Most significant chunk
+    int size;   // Number of chunks
+    int sign;   // -1 (-ve), 0 (zero), 1 (+ve)
 } BigInt;
 
-// So the compiler doesn't complain
+// Forward declaration (so compiler doesn't complain)
 static inline BigInt* addBigInts(BigInt* a, BigInt* b);
 
-// Frees the memory held by a BigInt pointer
+// Frees all nodes and the BigInt itself
 // @param bigNum Pointer to BigInt value to free
 static inline void freeBigInt(BigInt* bigNum){
     if(!bigNum){
@@ -43,7 +46,7 @@ static inline void freeBigInt(BigInt* bigNum){
     free(bigNum);
 }
 
-// Creates a BigInt from a number in string form
+// Parses a string into a BigInt
 // @param numStr The number the BigInt will represent
 // @return Pointer to BigInt value
 static inline BigInt* createBigInt(const char* numStr){
@@ -63,6 +66,8 @@ static inline BigInt* createBigInt(const char* numStr){
     bigNum->sign = 1;
 
     int startIndex = 0;
+
+    // Handles negative numbers
     if(numStr[0] == '-'){
         bigNum->sign = -1;
         startIndex = 1;
@@ -70,11 +75,12 @@ static inline BigInt* createBigInt(const char* numStr){
 
     int strLen = strlen(numStr);
 
-    // Don't read leading zeroes
+    // Skips leading zeroes
     while(startIndex < strLen && numStr[startIndex] == '0'){
         startIndex++;
     }
 
+    // If all zeroes -> allocate single zero node
     if(startIndex == strLen){
         bigNum->sign = 0;
         Node* zeroNode = (Node*)calloc(1, sizeof(Node));
@@ -91,7 +97,6 @@ static inline BigInt* createBigInt(const char* numStr){
         return bigNum;
     }
 
-    Node* current = NULL;
     // Iterate over the string, starting at the end
     for(int i=strLen-1; i>=startIndex; i-=CHUNK_SIZE){
         Node* newNode = (Node*)calloc(1, sizeof(Node));
@@ -107,6 +112,7 @@ static inline BigInt* createBigInt(const char* numStr){
         unsigned long long chunk = 0;
         unsigned long long multiplier = 1;
 
+        // Build chunk one digit at a time
         for(int j=0; j<CHUNK_SIZE && (i-j) >= startIndex; j++){
             char digit = numStr[i-j];
 
@@ -124,6 +130,7 @@ static inline BigInt* createBigInt(const char* numStr){
 
         newNode->digits = chunk;
 
+        // Append to list (with least significant chunk at head)
         if(bigNum->tail == NULL){
             bigNum->head = newNode;
             bigNum->tail = newNode;
@@ -138,7 +145,7 @@ static inline BigInt* createBigInt(const char* numStr){
     return bigNum;
 }
 
-// Creates a copy for a BigInt value
+// Deep copy of BigInt
 // @param src Pointer to the original BigInt value that needs copying
 // @return Pointer to copied BigInt value
 static inline BigInt* copyBigInt(const BigInt* src){
@@ -173,7 +180,7 @@ static inline BigInt* copyBigInt(const BigInt* src){
             return NULL;
         }
 
-        // Copy over the same digits from src
+        // Copies over the same digits from src
         newNode->digits = currSrc->digits;
         newNode->prev = prevDest;
         newNode->next = NULL;
@@ -195,7 +202,7 @@ static inline BigInt* copyBigInt(const BigInt* src){
     return dest;
 }
 
-// Prints digits of a node recursively
+// Prints digits of a node recursively (with most significant chunk first)
 // @param node The node to recurse over
 static inline void printNodeRecursive(Node* node){
     if(node == NULL){
@@ -204,15 +211,17 @@ static inline void printNodeRecursive(Node* node){
 
     printNodeRecursive(node->next);
 
+    // Prints most significant chunk normally
     if(node->next == NULL){
         printf("%llu", node->digits);
     
     }else{
+        // Pads with leading zeroes
         printf("%0*llu", CHUNK_SIZE, node->digits);
     }
 }
 
-// Prints the value represented by bigNum
+// Prints BigInt
 // @param bigNum Pointer to BigInt value to print
 static inline void printBigInt(BigInt* bigNum){
     if(!bigNum || bigNum->head == NULL){
@@ -232,7 +241,7 @@ static inline void printBigInt(BigInt* bigNum){
     printNodeRecursive(bigNum->head);
 }
 
-// Compare magnitudes of two BigInt values
+// Compare magnitudes of two BigInt values (ignores sign)
 // @return Value of 1 if |a| > |b|, -1 if |b| < |a| and 0 if |a| = |b|
 static inline int compareMagnitudes(BigInt* a, BigInt* b){
     // Trivial cases
@@ -244,7 +253,7 @@ static inline int compareMagnitudes(BigInt* a, BigInt* b){
         return -1;
     }
 
-    // Iterate backwards
+    // Compare from most significant chunk
     Node* currA = a->tail;
     Node* currB = b->tail;
 
@@ -264,6 +273,7 @@ static inline int compareMagnitudes(BigInt* a, BigInt* b){
     return 0;
 }
 
+// Computes 10^CHUNK_SIZE once and caches it
 static inline unsigned long long getLimit() {
     static unsigned long long limit = 0;
 
@@ -278,7 +288,7 @@ static inline unsigned long long getLimit() {
     return limit;
 }
 
-// Removes leading zeroes in bigNum
+// Removes leading zero chunks (from most significant chunk)
 // @param bigNum BigInt value to remove leading zeroes from
 // @return Pointer to normalised BigInt value
 static inline BigInt* normalise(BigInt* bigNum){
@@ -297,6 +307,7 @@ static inline BigInt* normalise(BigInt* bigNum){
         bigNum->size--;
     }
 
+    // If number is zero -> set sign = 0
     if(bigNum->size == 1 && bigNum->head->digits == 0){
         bigNum->sign = 0;
     }
@@ -382,14 +393,14 @@ static inline BigInt* addBigIntMagnitudes(BigInt* a, BigInt* b){
 
     result->sign = 1;
 
-    // Iterate forwards
     Node* currA = a->head;
     Node* currB = b->head;
 
     unsigned long long carry = 0;
-    // Set a limiting value for moving to next chunk
+    // Sets a limiting value for moving to next chunk
     const unsigned long long LIMIT = getLimit();
 
+    // Traverses from least significant chunks
     while(currA || currB || carry){
         unsigned long long valA = currA ? currA->digits : 0;
         unsigned long long valB = currB ? currB->digits : 0;
@@ -431,14 +442,14 @@ static inline BigInt* addBigIntMagnitudes(BigInt* a, BigInt* b){
     return result;
 }
 
-// Computes a - b
+// Full subtraction with sign handling
 // @return Pointer to BigInt value representing a - b
 static inline BigInt* subtractBigInts(BigInt* a, BigInt* b){    
     if(!a || !b){
         return NULL;
     }
 
-    // Zero cases
+    // Handles zero cases
     if(a->sign == 0){
         BigInt* result = copyBigInt(b);
 
@@ -455,7 +466,7 @@ static inline BigInt* subtractBigInts(BigInt* a, BigInt* b){
 
     BigInt* result = NULL;
 
-    // Equal signs
+    // Same sign -> subtraction
     if(a->sign == b->sign){
         // Result depends on the magnitudes
         int cmp = compareMagnitudes(a, b);
@@ -521,7 +532,7 @@ static inline BigInt* subtractBigInts(BigInt* a, BigInt* b){
     return result;
 }
 
-// Computes a + b
+// Full addition with sign handling
 // @return Pointer to BigInt value representing a + b
 static inline BigInt* addBigInts(BigInt* a, BigInt* b){    
     if(!a || !b){
@@ -539,7 +550,7 @@ static inline BigInt* addBigInts(BigInt* a, BigInt* b){
 
     BigInt* result = NULL;
 
-    // Equal signs
+    // Same sign -> magnitude addition
     if(a->sign == b->sign){
         result = addBigIntMagnitudes(a, b);
         
@@ -591,6 +602,83 @@ static inline BigInt* addBigInts(BigInt* a, BigInt* b){
             result->sign = 0;
         }
     }
+
+    return result;
+}
+
+// Full multiplication with sign handling
+// @return Pointer to BigInt value representing a * b
+static inline BigInt* multiplyBigInts(BigInt* a, BigInt* b){
+    if(!a || !b){
+        return NULL;
+    }
+
+    // Handles zero cases
+    if(a->sign == 0 || b->sign == 0){
+        return createBigInt("0");
+    }
+
+    const unsigned long long LIMIT = getLimit();
+
+    BigInt* result = (BigInt*)calloc(1, sizeof(BigInt));
+
+    if(!result){
+        return NULL;
+    }
+
+    result->sign = a->sign * b->sign;
+
+    // Allocate result nodes (max size = a->size + b->size)
+    for(int i=0; i<a->size + b->size; i++){
+        Node* node = (Node*)calloc(1, sizeof(Node));
+
+        if(!node){
+            freeBigInt(result);
+        
+            return NULL;
+        }
+
+        // Append node to result list
+        if(!result->head){
+            result->head = result->tail = node;
+        
+        }else{
+            node->prev = result->tail;
+            result->tail->next = node;
+            result->tail = node;
+        }
+
+        result->size++;
+    }
+
+    Node* currA = a->head;
+    Node* resultRow = result->head;
+
+    for(int i=0; i<a->size; i++){
+        Node* currB = b->head;
+        Node* resultCol = resultRow;
+
+        unsigned long long carry = 0;
+
+        for(int j=0; j<b->size; j++){
+            unsigned long long mul = currA->digits * currB->digits + resultCol->digits + carry;
+
+            resultCol->digits = mul % LIMIT;
+            carry = mul / LIMIT;
+
+            currB = currB->next;
+            resultCol = resultCol->next;
+        }
+
+        if(carry){
+            resultCol->digits += carry;
+        }
+
+        currA = currA->next;
+        resultRow = resultRow->next;
+    }
+
+    normalise(result);
 
     return result;
 }
