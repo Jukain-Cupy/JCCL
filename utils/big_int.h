@@ -57,9 +57,6 @@ static inline BigInt* BI_create(const char* numStr){
         return NULL;
     }
 
-    bigNum->head = NULL;
-    bigNum->tail = NULL;
-    bigNum->size = 0;
     bigNum->sign = 1;
 
     int startIndex = 0;

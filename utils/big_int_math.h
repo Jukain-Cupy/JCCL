@@ -68,6 +68,10 @@ static inline BigInt* BI_normalise(BigInt* bigNum){
 // Computes |a| - |b|, given a >= b
 // @return Pointer to BigInt value representing |a| - |b|
 static inline BigInt* BI_subtractMagnitudes(BigInt* a, BigInt* b){
+    if(!a || !b){
+        return NULL;
+    }
+
     if(BI_compareMagnitudes(a, b) < 0){
         return NULL;
     }
@@ -135,6 +139,10 @@ static inline BigInt* BI_subtractMagnitudes(BigInt* a, BigInt* b){
 // Computes |a| + |b|
 // @return Pointer to BigInt value representing |a| + |b|
 static inline BigInt* BI_addMagnitudes(BigInt* a, BigInt* b){
+    if(!a || !b){
+        return NULL;
+    }
+
     BigInt* result = (BigInt*)calloc(1, sizeof(BigInt));
 
     if(!result){
@@ -447,7 +455,7 @@ static inline int BI_isEven(BigInt* n){
         return 0;
     }
 
-    return (n->head->digits % 2ULL) != 0;
+    return (n->head->digits % 2ULL) == 0;
 }
 
 // Compare two BigInt values
@@ -473,6 +481,305 @@ static inline int BI_compare(BigInt* a, BigInt* b){
     }else{
         return -cmp;
     }
+}
+
+// Computes n / 2
+// @return Pointer to BigInt value representing n / 2
+static inline BigInt* BI_divideBy2(BigInt* n){
+    if(!n){
+        return NULL;
+    }
+
+    if(n->sign == 0){
+        return BI_create("0");
+    }
+
+    BigInt* result = BI_copy(n);
+
+    if(!result){
+        return NULL;
+    }
+
+    const unsigned long long BASE = BI_getLimit();
+    unsigned long long carry = 0;
+
+    Node* curr = result->tail;
+
+    while(curr){
+        unsigned long long val = carry * BASE + curr->digits;
+
+        curr->digits = val / 2ULL;
+        carry = val % 2ULL;
+
+        curr = curr->prev;
+    }
+
+    return BI_normalise(result);
+}
+
+// Computes n * 2
+// @return Pointer to BigInt value representing n * 2
+static inline BigInt* BI_multiplyBy2(BigInt* n){
+    if(!n){
+        return NULL;
+    }
+
+    if(n->sign == 0){
+        return BI_create("0");
+    }
+
+    BigInt* result = BI_copy(n);
+
+    if(!result){
+        return NULL;
+    }
+
+    const unsigned long long BASE = BI_getLimit();
+    unsigned long long carry = 0;
+
+    Node* curr = result->head;
+
+    while(curr){
+        unsigned long long val = curr->digits * 2ULL + carry;
+
+        curr->digits = val % BASE;
+        carry = val / BASE;
+        
+        curr = curr->next;
+    }
+
+    if(carry){
+        Node* node = (Node*)calloc(1, sizeof(Node));
+    
+        if(!node){
+            BI_free(result);
+
+            return NULL;
+        }
+
+        node->digits = carry;
+        node->prev = result->tail;
+
+        result->tail->next = node;
+        result->tail = node;
+        result->size++;
+    }
+
+    return result;
+}
+
+// Computes a mod b
+// @return Pointer to value representing a mod b
+static inline BigInt* BI_mod(BigInt* a, BigInt* b){
+    if(!a || !b){
+        return NULL;
+    }
+
+    if(b->sign == 0){
+        return NULL;
+    }
+
+    BigInt* rem = BI_copy(a);
+
+    if(!rem){
+        return NULL;
+    }
+
+    rem->sign = 1;
+
+    BigInt* div = BI_copy(b);
+
+    if(!div){
+        BI_free(rem);
+
+        return NULL;
+    }
+
+    div->sign = 1;
+
+    if(BI_compareMagnitudes(rem, div) < 0){
+        BI_free(div);
+
+        return rem;
+    }
+
+    while(BI_compareMagnitudes(rem, div) >= 0){
+        BigInt* tmp = BI_copy(div);
+        BigInt* next = NULL;
+
+        while(1){
+            next = BI_multiplyBy2(tmp);
+
+            if(BI_compareMagnitudes(next, rem) > 0){
+                BI_free(next);
+
+                break;
+            }
+
+            BI_free(tmp);
+
+            tmp = next;
+        }
+
+        BigInt* newRem = BI_subtract(rem, tmp);
+
+        BI_free(rem);
+        BI_free(tmp);
+
+        rem = newRem;
+    }
+
+    BI_free(div);
+
+    return BI_normalise(rem);
+}
+
+// Computes base^exponent
+// @param base Base for the exponentiation
+// @param exp Exponent for the exponentiation
+// @result Pointer too BigInt value representing base^exponent
+static inline BigInt* BI_pow(BigInt* base, BigInt* exp){
+    if(exp->sign < 0){
+        return NULL;
+    }
+
+    BigInt* result = BI_create("1");
+    BigInt* b = BI_copy(base);
+    BigInt* e = BI_copy(exp);
+
+    while(e->sign != 0){
+        if(!BI_isEven(e)){
+            BigInt* tmp = BI_multiply(result, b);    
+            BI_free(result);
+            result = tmp;
+        }
+
+        BigInt* bSquared = BI_multiply(b, b);
+        BI_free(b);
+        b = bSquared;
+
+        BigInt* eHalved = BI_divideBy2(e);
+        BI_free(e);
+        e = eHalved;
+    }
+
+    BI_free(b);
+    BI_free(e);
+
+    return result;
+}
+
+// Computes base^exponent over a modulus mod
+// @param base Base for the exponentiation
+// @param exp Exponent for the exponentiation
+// @param mod Modulus to compute exponentiation over
+// @return Pointer to BigInt value representing base^exponent over a modulus mod
+static inline BigInt* BI_powMod(BigInt* base, BigInt* exp, BigInt* mod){
+    if(!base || !exp || !mod){
+        return NULL;
+    }
+
+    if(exp->sign < 0){
+        return NULL;
+    }
+
+    BigInt* result = BI_create("1");
+
+    if(!result){
+        return NULL;
+    }
+
+    BigInt* b = BI_mod(base, mod);
+    
+    if(!b){
+        BI_free(result);
+
+        return NULL;
+    }
+
+    BigInt* e = BI_copy(exp);
+    
+    if(!e){
+        BI_free(result);
+        BI_free(b);
+
+        return NULL;
+    }
+
+    while(e->sign != 0){
+        if(!BI_isEven(e)){
+            BigInt* mul = BI_multiply(result, b);
+
+            if(!mul){
+                BI_free(result);
+                BI_free(b);
+                BI_free(e);
+
+                return NULL;
+            }
+
+            BigInt* reduced = BI_mod(mul, mod);
+            
+            BI_free(mul);
+
+            if(!reduced){
+                BI_free(result);
+                BI_free(b);
+                BI_free(e);
+
+                return NULL;
+            }
+
+            BI_free(result);
+
+            result = reduced;
+        }
+
+        BigInt* bSquared = BI_multiply(b, b);
+        
+        if(!bSquared){
+            BI_free(result);
+            BI_free(b);
+            BI_free(e);
+
+            return NULL;
+        }
+
+        BigInt* bSqReduced = BI_mod(bSquared, mod);
+
+        BI_free(bSquared);
+
+        if(!bSqReduced){
+            BI_free(result);
+            BI_free(b);
+            BI_free(e);
+
+            return NULL;
+        }
+
+        BI_free(b);
+
+        b = bSqReduced;
+
+        BigInt* eHalved = BI_divideBy2(e);
+
+        if(!eHalved){
+            BI_free(result);
+            BI_free(b);
+            BI_free(e);
+
+            return NULL;
+        }
+
+        BI_free(e);
+
+        e = eHalved;
+    }
+
+    BI_free(b);
+    BI_free(e);
+
+    return result;
 }
 
 #endif
