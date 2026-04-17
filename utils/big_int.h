@@ -24,11 +24,11 @@ typedef struct BigInt{
 } BigInt;
 
 // Forward declaration (so compiler doesn't complain)
-static inline BigInt* addBigInts(BigInt* a, BigInt* b);
+static inline BigInt* BI_add(BigInt* a, BigInt* b);
 
 // Frees all nodes and the BigInt itself
 // @param bigNum Pointer to BigInt value to free
-static inline void freeBigInt(BigInt* bigNum){
+static inline void BI_free(BigInt* bigNum){
     if(!bigNum){
         return;
     }
@@ -49,7 +49,7 @@ static inline void freeBigInt(BigInt* bigNum){
 // Parses a string into a BigInt
 // @param numStr The number the BigInt will represent
 // @return Pointer to BigInt value
-static inline BigInt* createBigInt(const char* numStr){
+static inline BigInt* BI_create(const char* numStr){
     if(numStr == NULL || numStr[0] == '\0'){
         return NULL;
     }
@@ -102,7 +102,7 @@ static inline BigInt* createBigInt(const char* numStr){
         Node* newNode = (Node*)calloc(1, sizeof(Node));
 
         if(!newNode){
-            freeBigInt(bigNum);
+            BI_free(bigNum);
 
             return NULL;
         }
@@ -118,7 +118,7 @@ static inline BigInt* createBigInt(const char* numStr){
 
             if(digit < '0' || digit > '9'){
                 free(newNode);
-                freeBigInt(bigNum);
+                BI_free(bigNum);
 
                 return NULL;
             }
@@ -148,7 +148,7 @@ static inline BigInt* createBigInt(const char* numStr){
 // Deep copy of BigInt
 // @param src Pointer to the original BigInt value that needs copying
 // @return Pointer to copied BigInt value
-static inline BigInt* copyBigInt(const BigInt* src){
+static inline BigInt* BI_copy(const BigInt* src){
     if(!src){
         return NULL;
     }
@@ -175,7 +175,7 @@ static inline BigInt* copyBigInt(const BigInt* src){
         Node* newNode = (Node*)calloc(1, sizeof(Node));
 
         if(!newNode){
-            freeBigInt(dest);
+            BI_free(dest);
 
             return NULL;
         }
@@ -204,12 +204,12 @@ static inline BigInt* copyBigInt(const BigInt* src){
 
 // Prints digits of a node recursively (with most significant chunk first)
 // @param node The node to recurse over
-static inline void printNodeRecursive(Node* node){
+static inline void BI_printNodeRecursive(Node* node){
     if(node == NULL){
         return;
     }
 
-    printNodeRecursive(node->next);
+    BI_printNodeRecursive(node->next);
 
     // Prints most significant chunk normally
     if(node->next == NULL){
@@ -223,7 +223,7 @@ static inline void printNodeRecursive(Node* node){
 
 // Prints BigInt
 // @param bigNum Pointer to BigInt value to print
-static inline void printBigInt(BigInt* bigNum){
+static inline void BI_print(BigInt* bigNum){
     if(!bigNum || bigNum->head == NULL){
         return;
     }
@@ -238,12 +238,12 @@ static inline void printBigInt(BigInt* bigNum){
         printf("-");
     }
 
-    printNodeRecursive(bigNum->head);
+    BI_printNodeRecursive(bigNum->head);
 }
 
 // Compare magnitudes of two BigInt values (ignores sign)
 // @return Value of 1 if |a| > |b|, -1 if |b| < |a| and 0 if |a| = |b|
-static inline int compareMagnitudes(BigInt* a, BigInt* b){
+static inline int BI_compareMagnitudes(BigInt* a, BigInt* b){
     // Trivial cases
     if(a->size > b->size){
         return 1;
@@ -274,7 +274,7 @@ static inline int compareMagnitudes(BigInt* a, BigInt* b){
 }
 
 // Computes 10^CHUNK_SIZE once and caches it
-static inline unsigned long long getLimit() {
+static inline unsigned long long BI_getLimit() {
     static unsigned long long limit = 0;
 
     if (limit == 0) {
@@ -291,7 +291,7 @@ static inline unsigned long long getLimit() {
 // Removes leading zero chunks (from most significant chunk)
 // @param bigNum BigInt value to remove leading zeroes from
 // @return Pointer to normalised BigInt value
-static inline BigInt* normalise(BigInt* bigNum){
+static inline BigInt* BI_normalise(BigInt* bigNum){
     if(!bigNum){
         return NULL;
     }
@@ -317,8 +317,8 @@ static inline BigInt* normalise(BigInt* bigNum){
 
 // Computes |a| - |b|, given a >= b
 // @return Pointer to BigInt value representing |a| - |b|
-static inline BigInt* subtractBigIntMagnitudes(BigInt* a, BigInt* b){
-    if(compareMagnitudes(a, b) < 0){
+static inline BigInt* BI_subtractMagnitudes(BigInt* a, BigInt* b){
+    if(BI_compareMagnitudes(a, b) < 0){
         return NULL;
     }
 
@@ -334,7 +334,7 @@ static inline BigInt* subtractBigIntMagnitudes(BigInt* a, BigInt* b){
 
     unsigned long long borrow = 0;
     // Set a limiting value for moving to next chunk
-    const unsigned long long LIMIT = getLimit();
+    const unsigned long long LIMIT = BI_getLimit();
 
     while(currA){
         unsigned long long valA = (unsigned long long)currA->digits;
@@ -353,7 +353,7 @@ static inline BigInt* subtractBigIntMagnitudes(BigInt* a, BigInt* b){
         Node* newNode = (Node*)calloc(1, sizeof(Node));
 
         if(!newNode){
-            freeBigInt(result);
+            BI_free(result);
 
             return NULL;
         }
@@ -379,12 +379,12 @@ static inline BigInt* subtractBigIntMagnitudes(BigInt* a, BigInt* b){
         }
     }
 
-    return normalise(result);
+    return BI_normalise(result);
 }
 
 // Computes |a| + |b|
 // @return Pointer to BigInt value representing |a| + |b|
-static inline BigInt* addBigIntMagnitudes(BigInt* a, BigInt* b){
+static inline BigInt* BI_addMagnitudes(BigInt* a, BigInt* b){
     BigInt* result = (BigInt*)calloc(1, sizeof(BigInt));
 
     if(!result){
@@ -398,7 +398,7 @@ static inline BigInt* addBigIntMagnitudes(BigInt* a, BigInt* b){
 
     unsigned long long carry = 0;
     // Sets a limiting value for moving to next chunk
-    const unsigned long long LIMIT = getLimit();
+    const unsigned long long LIMIT = BI_getLimit();
 
     // Traverses from least significant chunks
     while(currA || currB || carry){
@@ -444,14 +444,14 @@ static inline BigInt* addBigIntMagnitudes(BigInt* a, BigInt* b){
 
 // Full subtraction with sign handling
 // @return Pointer to BigInt value representing a - b
-static inline BigInt* subtractBigInts(BigInt* a, BigInt* b){    
+static inline BigInt* BI_subtract(BigInt* a, BigInt* b){    
     if(!a || !b){
         return NULL;
     }
 
     // Handles zero cases
     if(a->sign == 0){
-        BigInt* result = copyBigInt(b);
+        BigInt* result = BI_copy(b);
 
         if(result && result->sign != 0){
             result->sign = -result->sign;
@@ -461,7 +461,7 @@ static inline BigInt* subtractBigInts(BigInt* a, BigInt* b){
     }
 
     if(b->sign == 0){
-        return copyBigInt(a);
+        return BI_copy(a);
     }
 
     BigInt* result = NULL;
@@ -469,18 +469,18 @@ static inline BigInt* subtractBigInts(BigInt* a, BigInt* b){
     // Same sign -> subtraction
     if(a->sign == b->sign){
         // Result depends on the magnitudes
-        int cmp = compareMagnitudes(a, b);
+        int cmp = BI_compareMagnitudes(a, b);
 
         if(a->sign > 0){
             if(cmp >= 0){
-                result = subtractBigIntMagnitudes(a, b);
+                result = BI_subtractMagnitudes(a, b);
 
                 if(result){
                     result->sign = 1;
                 }
             
             }else{
-                result = subtractBigIntMagnitudes(b, a);
+                result = BI_subtractMagnitudes(b, a);
 
                 if(result){
                     result->sign = -1;
@@ -488,14 +488,14 @@ static inline BigInt* subtractBigInts(BigInt* a, BigInt* b){
             }        
         }else{
             if(cmp >= 0){
-                result = subtractBigIntMagnitudes(a, b);
+                result = BI_subtractMagnitudes(a, b);
 
                 if(result){
                     result->sign = -1;
                 }
             
             }else{
-                result = subtractBigIntMagnitudes(b, a);
+                result = BI_subtractMagnitudes(b, a);
 
                 if(result){
                     result->sign = 1;
@@ -505,7 +505,7 @@ static inline BigInt* subtractBigInts(BigInt* a, BigInt* b){
     
     // If a is +ve and b is -ve
     }else if(a->sign > 0 && b->sign < 0){
-        result = addBigIntMagnitudes(a, b);
+        result = BI_addMagnitudes(a, b);
 
         if(result){
             result->sign = 1;
@@ -513,7 +513,7 @@ static inline BigInt* subtractBigInts(BigInt* a, BigInt* b){
     
     // If a is -ve and b is +ve
     }else{
-        result = addBigIntMagnitudes(a, b);
+        result = BI_addMagnitudes(a, b);
 
         if(result){
             result->sign = -1;
@@ -521,7 +521,7 @@ static inline BigInt* subtractBigInts(BigInt* a, BigInt* b){
     }
 
     if(result){
-        normalise(result);
+        BI_normalise(result);
 
         // Set sign for 0 value
         if(result->size == 1 && result->head->digits == 0){
@@ -534,25 +534,25 @@ static inline BigInt* subtractBigInts(BigInt* a, BigInt* b){
 
 // Full addition with sign handling
 // @return Pointer to BigInt value representing a + b
-static inline BigInt* addBigInts(BigInt* a, BigInt* b){    
+static inline BigInt* BI_add(BigInt* a, BigInt* b){    
     if(!a || !b){
         return NULL;
     }
 
     // Zero cases
     if(a->sign == 0){
-        return copyBigInt(b);
+        return BI_copy(b);
     }
 
     if(b->sign == 0){
-        return copyBigInt(a);
+        return BI_copy(a);
     }
 
     BigInt* result = NULL;
 
     // Same sign -> magnitude addition
     if(a->sign == b->sign){
-        result = addBigIntMagnitudes(a, b);
+        result = BI_addMagnitudes(a, b);
         
         if(result){
             result->sign = a->sign;
@@ -560,16 +560,16 @@ static inline BigInt* addBigInts(BigInt* a, BigInt* b){
 
     // If a is +ve and b is -ve
     }else if(a->sign > 0 && b->sign < 0){
-        int cmp = compareMagnitudes(a, b);
+        int cmp = BI_compareMagnitudes(a, b);
         
         if(cmp >= 0){
-            result = subtractBigIntMagnitudes(a, b);
+            result = BI_subtractMagnitudes(a, b);
             if(result){ 
                 result->sign = 1;
             }
         
         }else{
-            result = subtractBigIntMagnitudes(b, a);
+            result = BI_subtractMagnitudes(b, a);
             
             if(result){
                 result->sign = -1;
@@ -578,15 +578,15 @@ static inline BigInt* addBigInts(BigInt* a, BigInt* b){
 
     // If a is -ve and b is +ve
     }else{
-        int cmp = compareMagnitudes(a, b);
+        int cmp = BI_compareMagnitudes(a, b);
         if(cmp >= 0){
-            result = subtractBigIntMagnitudes(a, b);
+            result = BI_subtractMagnitudes(a, b);
             if(result){
                 result->sign = -1;
             }
         
         }else{
-            result = subtractBigIntMagnitudes(b, a);
+            result = BI_subtractMagnitudes(b, a);
             
             if(result){
                 result->sign = 1;
@@ -595,7 +595,7 @@ static inline BigInt* addBigInts(BigInt* a, BigInt* b){
     }
 
     if(result){
-        normalise(result);
+        BI_normalise(result);
 
         // Set sign for 0 value
         if(result->size == 1 && result->head->digits == 0){
@@ -608,17 +608,17 @@ static inline BigInt* addBigInts(BigInt* a, BigInt* b){
 
 // Full multiplication with sign handling
 // @return Pointer to BigInt value representing a * b
-static inline BigInt* multiplyBigInts(BigInt* a, BigInt* b){
+static inline BigInt* BI_multiply(BigInt* a, BigInt* b){
     if(!a || !b){
         return NULL;
     }
 
     // Handles zero cases
     if(a->sign == 0 || b->sign == 0){
-        return createBigInt("0");
+        return BI_create("0");
     }
 
-    const unsigned long long LIMIT = getLimit();
+    const unsigned long long LIMIT = BI_getLimit();
 
     BigInt* result = (BigInt*)calloc(1, sizeof(BigInt));
 
@@ -633,7 +633,7 @@ static inline BigInt* multiplyBigInts(BigInt* a, BigInt* b){
         Node* node = (Node*)calloc(1, sizeof(Node));
 
         if(!node){
-            freeBigInt(result);
+            BI_free(result);
         
             return NULL;
         }
@@ -678,9 +678,50 @@ static inline BigInt* multiplyBigInts(BigInt* a, BigInt* b){
         resultRow = resultRow->next;
     }
 
-    normalise(result);
+    BI_normalise(result);
 
     return result;
+}
+
+// Checks if BigInt value represents zero
+// @return Value of 1 if n = 0, 0 if not
+static inline int BI_isZero(BigInt* n){
+    return n && n->sign == 0;
+}
+
+// Checks if BigInt value represents an even number
+// @return Value of 1 if n is even, 0 if not
+static inline int BI_isEven(BigInt* n){
+    if(!n || !n->head){
+        return 0;
+    }
+
+    return (n->head->digits % 2ULL) != 0;
+}
+
+// Compare two BigInt values
+// @return Value of 1 if a > b, -1 if b < a and 0 if a = b
+static inline int BI_compare(BigInt* a, BigInt* b){
+    if(a->sign > b->sign){
+        return 1;
+    }
+
+    if(a->sign < b->sign){
+        return -1;
+    }
+
+    if(a->sign == 0){
+        return 0;
+    }
+
+    int cmp = BI_compareMagnitudes(a, b);
+
+    if(a->sign > 0){
+        return cmp;
+    
+    }else{
+        return -cmp;
+    }
 }
 
 #endif
