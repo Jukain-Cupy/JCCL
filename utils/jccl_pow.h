@@ -1,7 +1,7 @@
-#ifndef POW_H
-#define POW_H
+#ifndef JCCL_POW_H
+#define JCCL_POW_H
 
-static inline long pow(long n, int exp) {
+static inline long jccl_pow(long n, int exp) {
         int prod = n;
         if (exp == 0) {
                 prod = 1;

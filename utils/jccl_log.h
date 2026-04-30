@@ -1,7 +1,7 @@
-#ifndef LOG_H
-#define LOG_H
+#ifndef JCCL_LOG_H
+#define JCCL_LOG_H
 
-static inline int log (int  base, long  n) {
+static inline int jccl_log(int  base, long  n) {
         int exp = 0;
         if (n == 0 || (n < base && n != 1)) {
                 return -1; 
