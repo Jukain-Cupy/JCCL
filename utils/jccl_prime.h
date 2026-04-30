@@ -1,7 +1,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "big_int.h"
+#include "big_int.h" // needs merge
 #include "jccl_rand.h"
 
 #ifndef JCCL_PRIME_H
